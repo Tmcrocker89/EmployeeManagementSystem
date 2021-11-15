@@ -66,33 +66,11 @@ const manageEmp = () =>
                         })
                     break;
                 case "Add a role":
-                    inquirer
-                        .prompt([
-                            {
-                                type: "input",
-                                name: "role",
-                                message: "Whats the name of the role?"
-                            },
-                            {
-                                type: "input",
-                                name: "salary",
-                                message: "Whats the salary for the role?"
-                            },
-                            {
-                                type: "input",
-                                name: "dep",
-                                message: "What the deparment ID for the roll in?"
-                            },
-                        ]).then(function(data)
-                        {
-                            const { role, salary, dep } = data;
-                            addRole(role, salary, dep);
-                            manageEmp();
-                        })
+                    getDep()
 
                     break;
                 case "Add an employee":
-                    getDep();
+                    getRole();
                     // manageEmp();            
                     break;
                 case "Update employee role":
@@ -103,6 +81,7 @@ const manageEmp = () =>
                     console.log("Have a nice day")
                     break;
                 case "test":
+                    console.log(getList)
                     break;
 
             }
@@ -153,37 +132,52 @@ const addDep = (dep) =>
     `, dep, function(err, results)
     {
         console.log(err)
-        console.log(results)
+        // console.log(results)
     })
 }
 
-const addRole = (title, salary, deparment_id) =>
+const addRole = (title, salary, department) =>
 {
-    db.query(`
-        INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?);
-        `, [title, salary, deparment_id], function(err, results)
-        {
-            console.log(err)
-            console.log(results)
-        })
+    new Promise((resolve,reject) =>
+    {
+        // let query = `SELECT * FROM department WHERE name = ?`, department;
+        const dbPromise = db.promise();
+        console.log(department)
+        resolve(dbPromise.query(`SELECT * FROM department WHERE name = ?`, department))
+    })
+    .then(function(data)
+    {
+        const [rows, list] = data;
+        let depId = rows[0].id;
+        db.query(`
+            INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?);
+            `, [title, salary, depId], function(err, results)
+            {
+             console.log(err)
+                // console.log(results)
+            })
+    })
 }
 
 const addEmp = (first, last, role, man) =>
 {
     new Promise((resolve,reject) =>
     {
+        console.log(role)
         db.query(`
         SELECT id FROM role WHERE title = ?;
         `, role, function(err, results)
         {
             console.log(err)
             console.log(results)
-            resolve(results.id)
+            resolve(results)
         })
     })
     .then(function(data)
     {
-        let roleId = data;
+        const [rows, list] = data;
+        let roleId = rows.id;
+        console.log(roleId)
         console.log(first,last,roleId,man)
         db.query(`
         INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?);
@@ -203,12 +197,94 @@ const updateEmp = (role, id) =>
         `, [role, id], function(err, results)
         {
             console.log(err)
-            console.log(results)
+            // console.log(results)
         })
 }
 
+const getRole = async () =>
+{  
+    let roles; 
+    new Promise((resolve, reject) =>
+    {
+        let query = `SELECT * FROM role;`
+        const dbPromise = db.promise();
+        resolve(dbPromise.query(query))
+    })    
+    .then(function(data)
+    {
+        let roleListChoices = [];
+        const [rows, list] = data;
+        for(let i = 0; i < rows.length; i++)
+        {
+            roleListChoices.push(`${rows[i].title}`)
+        }
+        return roleListChoices
+    })
+    .then(function(data)
+    {
+        roles = data;
+        return new Promise((resolve,reject) =>
+        {
+            let query2 = `SELECT * FROM employee WHERE role_id = 1;`
+            const dbPromise2 = db.promise();
+            return resolve(dbPromise2.query(query2)) 
+        })
+    })
+    .then(function(data)
+    {
+        console.log('why')
+        let managerListChoices = [];
+        const [rows, list] = data;
+        // console.log(rows)
+        for(let i = 0; i < rows.length; i++)
+        {
+            managerListChoices.push(`${rows[i].id} ${rows[i].first_name} ${rows[i].last_name}`)
+        }
+        return managerListChoices
+    })
+    .then(function(data)
+    {
+        let managers = data;
+        inquirer
+        .prompt([
+            {
+                type: "input",
+                name: "first",
+                message: "Whats the employees first name?"
+            },
+            {
+                type: "input",
+                name: "last",
+                message: "Whats the employees last name"
+            },
+            {
+                type: "list",
+                name: "role",
+                message: "What would you like to do?",
+                choices: roles                             
+            },
+            {
+                type: "list",
+                name: "manager",
+                message: "Whats the employees Manager",
+                choices: managers
+            },
+        
+        ]).then(function(data) 
+        {
+            const {first, last, role, manager} = data;
+            let managerId = manager.slice(0,1);
+            addEmp(first,last,role, managerId);
+            manageEmp();
+            
+        })
+ 
+    })
+}
+
 const getDep = async () =>
-{   
+{  
+    let departments; 
     new Promise((resolve, reject) =>
     {
         let query = `SELECT * FROM department;`
@@ -227,67 +303,34 @@ const getDep = async () =>
     })
     .then(function(data)
     {
+        departments = data;
         inquirer
         .prompt([
             {
                 type: "input",
-                name: "first",
-                message: "Whats the employees first name?"
+                name: "role",
+                message: "Whats the name of the role?"
             },
             {
                 type: "input",
-                name: "last",
-                message: "Whats the employees last name"
+                name: "salary",
+                message: "Whats the salary for the role?"
             },
             {
                 type: "list",
-                name: "role",
-                message: "What would you like to do?",
-                choices: data                             
+                name: "dep",
+                message: "Whats the deparment for the roll in?",
+                choices: departments
+
             },
-            {
-                type: "input",
-                name: "manager",
-                message: "Whats the employees Manager"
-            },
-        
-        ]).then(function(data) 
+        ]).then(function(data)
         {
-            const {first, last, role, manager} = data;
-            addEmp(first,last,role, manager);
+            const { role, salary, dep } = data;
+            addRole(role, salary, dep);
             manageEmp();
-            
         })
  
     })
 }
 
 
-// const getDep = async () =>
-// {
-//     return await getResult();
-//     async function getResult()
-//     {
-        
-//         let depListChoices = [];
-//         list = await doQuery();
-//         async function doQuery()
-//         {
-//             let query = `SELECT * FROM department;`
-//             const dbPromise = db.promise();
-//             const [rows, list] = await dbPromise.query(query);
-//             return await getDep(rows)
-//         }    
-//         async function getDep(rows)
-//         {
-//             for(let i = 0; i < rows.length; i++)
-//             {
-//                 depListChoices.push(rows[i].name)
-//             }
-//             // console.log(depListChoices)
-//             return depListChoices
-            
-//         }
-//         return list
-//     }    
-// }
