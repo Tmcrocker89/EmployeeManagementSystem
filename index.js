@@ -27,6 +27,7 @@ const manageEmp = () =>
                     "Add a role",
                     "Add an employee",
                     "Update employee role",
+                    "test",
                     "Quit"
                 ]
             }
@@ -91,8 +92,8 @@ const manageEmp = () =>
 
                     break;
                 case "Add an employee":
-                    addEmp();
-                    manageEmp();
+                    getDep();
+                    // manageEmp();            
                     break;
                 case "Update employee role":
                     updateEmp();
@@ -100,6 +101,8 @@ const manageEmp = () =>
                     break;
                 case "Quit":
                     console.log("Have a nice day")
+                    break;
+                case "test":
                     break;
 
             }
@@ -167,13 +170,30 @@ const addRole = (title, salary, deparment_id) =>
 
 const addEmp = (first, last, role, man) =>
 {
-    db.query(`
+    new Promise((resolve,reject) =>
+    {
+        db.query(`
+        SELECT id FROM role WHERE title = ?;
+        `, role, function(err, results)
+        {
+            console.log(err)
+            console.log(results)
+            resolve(results.id)
+        })
+    })
+    .then(function(data)
+    {
+        let roleId = data;
+        console.log(first,last,roleId,man)
+        db.query(`
         INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?);
-        `, [first, last, role, man], function(err, results)
+        `, [first, last, roleId, man], function(err, results)
         {
             console.log(err)
             console.log(results)
         })
+    })
+    
 }
 
 const updateEmp = (role, id) =>
@@ -186,3 +206,88 @@ const updateEmp = (role, id) =>
             console.log(results)
         })
 }
+
+const getDep = async () =>
+{   
+    new Promise((resolve, reject) =>
+    {
+        let query = `SELECT * FROM department;`
+        const dbPromise = db.promise();
+        resolve(dbPromise.query(query))
+    })    
+    .then(function(data)
+    {
+        let depListChoices = [];
+        const [rows, list] = data;
+        for(let i = 0; i < rows.length; i++)
+        {
+            depListChoices.push(rows[i].name)
+        }
+        return depListChoices
+    })
+    .then(function(data)
+    {
+        inquirer
+        .prompt([
+            {
+                type: "input",
+                name: "first",
+                message: "Whats the employees first name?"
+            },
+            {
+                type: "input",
+                name: "last",
+                message: "Whats the employees last name"
+            },
+            {
+                type: "list",
+                name: "role",
+                message: "What would you like to do?",
+                choices: data                             
+            },
+            {
+                type: "input",
+                name: "manager",
+                message: "Whats the employees Manager"
+            },
+        
+        ]).then(function(data) 
+        {
+            const {first, last, role, manager} = data;
+            addEmp(first,last,role, manager);
+            manageEmp();
+            
+        })
+ 
+    })
+}
+
+
+// const getDep = async () =>
+// {
+//     return await getResult();
+//     async function getResult()
+//     {
+        
+//         let depListChoices = [];
+//         list = await doQuery();
+//         async function doQuery()
+//         {
+//             let query = `SELECT * FROM department;`
+//             const dbPromise = db.promise();
+//             const [rows, list] = await dbPromise.query(query);
+//             return await getDep(rows)
+//         }    
+//         async function getDep(rows)
+//         {
+//             for(let i = 0; i < rows.length; i++)
+//             {
+//                 depListChoices.push(rows[i].name)
+//             }
+//             // console.log(depListChoices)
+//             return depListChoices
+            
+//         }
+//         return list
+//     }    
+// }
